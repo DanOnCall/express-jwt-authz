@@ -5,7 +5,11 @@
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha",
+    "install:express4": "npm install --save-dev --save-exact express@^4.17.1 @types/express@^4.17.1",
+    "install:express5": "npm install --save-dev --save-exact express@^5.0.1 @types/express@^5.0.1",
+    "test:express4": "npm run install:express4 && mocha",
+    "test:express5": "npm run install:express5 && mocha"
   },
   "files": [
     "lib"
@@ -26,7 +30,9 @@
   },
   "homepage": "https://github.com/auth0/express-jwt-authz#readme",
   "devDependencies": {
+    "@types/express": "5.0.1",
     "chai": "^4.2.0",
+    "express": "5.1.0",
     "husky": "^1.1.4",
     "mocha": "^5.2.0",
     "prettier": "^1.14.3",
@@ -41,7 +47,7 @@
     "node": ">=6"
   },
   "peerDependencies": {
-    "express": "^4.0.0",
-    "@types/express": "^4.0.0"
+    "@types/express": "^4.0.0 || ^5.0.0",
+    "express": "^4.0.0 || ^5.0.0"
   }
 }
