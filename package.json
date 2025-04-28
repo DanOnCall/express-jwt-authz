@@ -11,7 +11,8 @@
     "pretest:express": "npm ci",
     "test:all-express": "npm run pretest:express && npm run test:express4 && npm run test:express5",
     "build": "tsc",
-    "coverage": "c8 tsx ./node_modules/.bin/mocha 'test/**/*.ts'"
+    "coverage": "c8 tsx ./node_modules/.bin/mocha 'test/**/*.ts'",
+    "prepare": "husky"
   },
   "files": [
     "lib"
