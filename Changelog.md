@@ -1,25 +1,26 @@
-# 3.0.0 (2025-04-28)
+# 3.0.0
 
 ### BREAKING CHANGES
 
 - **Export Method:** The library now uses a named export (`export const jwtAuthz`) instead of `module.exports`. CommonJS consumers must update their `require` statements from `const jwtAuthz = require('express-jwt-authz');` to `const { jwtAuthz } = require('express-jwt-authz');`. ES Module imports (`import { jwtAuthz } from ...`) remain unchanged.
+- **Default User Key:** The default value for the `customUserKey` option has been changed from `'user'` to `'auth'`. This aligns with `express-jwt` `v6.0.0` and later. If you are using an older version of `express-jwt` or a different middleware that places the user payload on `req.user`, you must now explicitly pass `{ customUserKey: 'user' }` to `jwtAuthz`. Users of modern `express-jwt` no longer need to specify `{ customUserKey: 'auth' }`.
 
 ### Added
 
-- **TypeScript:** Migrated entire codebase from JavaScript to TypeScript, providing first-class type definitions included in the package. (900f4ba)
-- **Express v5 Support:** Added official peer dependency support for Express `^5.0.0`. (6252721)
-- **Testing:** Introduced comprehensive unit tests with improved coverage reporting using `c8`. (900f4ba)
-- **Coverage:** Added test coverage reporting mechanism. (900f4ba)
+- **TypeScript:** Migrated entire codebase from JavaScript to TypeScript, providing first-class type definitions included in the package.
+- **Express v5 Support:** Added official peer dependency support for Express `^5.0.0`.
+- **Testing:** Introduced comprehensive unit tests with improved coverage reporting using `c8`.
+- **Coverage:** Added test coverage reporting mechanism.
 
 ### Changed
 
-- **Dependencies:** Updated various development dependencies, including migrating from `pretty-quick` v1 and old Husky to `lint-staged` and modern Husky for pre-commit hooks. (3564fa4, 2a1c6a2)
-- **Build Process:** Implemented TypeScript compilation using `tsc`. (900f4ba)
-- **Documentation:** Updated README with TypeScript examples, type information, setup instructions, and contribution guidelines. (900f4ba, 0dc7f51, 48ab220)
+- **Dependencies:** Updated various development dependencies.
+- **Build Process:** Implemented TypeScript compilation using `tsc`.
+- **Documentation:** Updated README with TypeScript examples, type information, setup instructions, and contribution guidelines.
 
 ### Removed
 
-- Removed old JavaScript source files. (Implied by 900f4ba)
+- Removed old JavaScript source files.
 
 # 2.4.1
 

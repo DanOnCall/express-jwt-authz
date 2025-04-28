@@ -18,7 +18,7 @@ export type AuthzOptions = {
 };
 
 const DEFAULT_SCOPE_KEY = 'scope';
-const DEFAULT_USER_KEY = 'user';
+const DEFAULT_AUTH_KEY = 'auth';
 
 /**
  * Checks if a value is a plain object (has properties) and not null or an array.
@@ -81,7 +81,7 @@ export const jwtAuthz = (
     }
 
     let scopeKey = DEFAULT_SCOPE_KEY;
-    let userKey = DEFAULT_USER_KEY;
+    let authKey = DEFAULT_AUTH_KEY;
     let userScopes: string[] = [];
 
     if (
@@ -97,10 +97,10 @@ export const jwtAuthz = (
       options.customUserKey != null &&
       typeof options.customUserKey === 'string'
     ) {
-      userKey = options.customUserKey;
+      authKey = options.customUserKey;
     }
 
-    const payload = req[userKey];
+    const payload = req[authKey];
 
     if (!isObjectWithProperties(payload)) {
       return error(res);

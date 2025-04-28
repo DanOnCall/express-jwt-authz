@@ -35,17 +35,17 @@ expectedScopes: string[];
 
 ```typescript
 options?: {
-  failWithError?: boolean;
-  customScopeKey?: string;
-  customUserKey?: string;
   checkAllScopes?: boolean;
+  customUserKey?: string;
+  customScopeKey?: string;
+  failWithError?: boolean;
 };
 ```
 
 Optional. Configuration options for the middleware's behavior.
 
 - `checkAllScopes`: (`boolean`, default: `false`) If set to `true`, the user must have _all_ the scopes specified in the `scopes` array passed as the first argument. Otherwise, the user must have _at least one_ scope from that array.
-- `customUserKey`: (`string`, default: `'user'`) The property name on the `req` object where the user payload (containing the scope information) can be found. Use `'auth'` for `express-jwt >= 6.0.0`.
+- `customUserKey`: (`string`, default: `'auth'`) The property name on the `req` object where the user payload (containing the scope information) can be found. Use `'user'` if using `express-jwt < 6.0.0`.
 - `customScopeKey`: (`string`, default: `'scope'`) The property name within the user payload object that holds the scope string or array.
 - `failWithError`: (`boolean`, default: `false`) If set to `true`, authentication errors will be passed to the `next(err)` function instead of automatically ending the response with a 403 Forbidden status.
 
@@ -62,7 +62,7 @@ An Express middleware function.
 Use this middleware together with [express-jwt](https://github.com/auth0/express-jwt) to first validate a JWT and then ensure it contains the necessary permissions (scopes) to access a specific endpoint.
 
 > [!IMPORTANT]  
-> `express-jwt` version `6.0.0` and later place the decoded JWT payload on `req.auth` by default (older versions used `req.user`). The examples below assume you are using `express-jwt >= 6.0.0`. Replace placeholder secrets/URIs with your actual values.
+> `express-jwt` version `v6.0.0` and later place the decoded JWT payload on `req.auth` by default. This library (`express-jwt-authz`) now also defaults to looking for the payload at `req.auth`. If you are using `express-jwt < 6.0.0`, you must pass `{ customUserKey: 'user' }` as options to this middleware.
 
 ### Basic setup and single scope check
 
@@ -95,9 +95,7 @@ const checkJwt = expressjwt({
 });
 
 // Require 'read:messages' scope
-const checkReadMessagesScope = jwtAuthz(['read:messages'], {
-  customUserKey: 'auth',
-});
+const checkReadMessagesScope = jwtAuthz(['read:messages']);
 
 // Define the endpoint
 app.get(
@@ -146,9 +144,7 @@ const checkJwt = expressjwt({
 });
 
 // Require 'read:users' OR 'admin:users' scope
-const checkUsersReadOrAdminScope = jwtAuthz(['read:users', 'admin:users'], {
-  customUserKey: 'auth',
-});
+const checkUsersReadOrAdminScope = jwtAuthz(['read:users', 'admin:users']);
 
 app.get(
   '/users',
@@ -197,7 +193,6 @@ const checkJwt = expressjwt({
 const checkUsersWriteAndApproveScope = jwtAuthz(
   ['write:users', 'approve:users'],
   {
-    customUserKey: 'auth',
     checkAllScopes: true, // Require BOTH scopes
   },
 );
