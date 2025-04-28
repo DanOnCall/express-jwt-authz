@@ -1,15 +1,23 @@
 import * as express from 'express';
 import { expect } from 'chai';
-import { jwtAuthz } from '../src';
+import {
+  jwtAuthz,
+  AuthzError,
+  ERROR_MSG_SCOPE_CLAIM_MISSING_OR_INVALID_FORMAT,
+  ERROR_MSG_SCOPE_CLAIM_MALFORMED_ARRAY,
+  ERROR_MSG_INSUFFICIENT_SCOPE,
+  createMissingPayloadMessage,
+} from '../src';
 import { MockResponse, createRequest, createResponse } from 'node-mocks-http';
 
-function assertErrorResponseIs403InsufficientScope(
-  res: MockResponse<express.Response>, // Use the specific mock type
+function assertErrorResponseIs403(
+  res: MockResponse<express.Response>,
   expectedScopes: string[],
+  expectedMessage: string,
 ) {
   expect(res.statusCode).to.equal(403);
 
-  expect(res._getData()).to.equal('Insufficient scope');
+  expect(res._getData()).to.equal(expectedMessage);
 
   const header = res.getHeader('www-authenticate');
   if (typeof header !== 'string') {
@@ -21,6 +29,8 @@ function assertErrorResponseIs403InsufficientScope(
   expect(header.split('scope="')[1]?.split('"')[0]).to.equal(
     expectedScopes.join(' '),
   );
+
+  expect(header.split('error="')[1]?.split('"')[0]).to.equal(expectedMessage);
 }
 
 describe('should error', () => {
@@ -44,12 +54,12 @@ describe('should error', () => {
   });
 });
 
-describe('should 403 and "Insufficient scope"', () => {
+describe('should 403 for various authorization errors', () => {
   it('when scope in user does not match expectedScopes', () => {
     const expectedScopes = ['read:user'];
 
     const mockRequest = createRequest({
-      user: {
+      auth: {
         scope: '',
       },
     });
@@ -58,14 +68,18 @@ describe('should 403 and "Insufficient scope"', () => {
 
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, mockNext);
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      ERROR_MSG_INSUFFICIENT_SCOPE,
+    );
   });
 
   it('when scope in user does not match expectedScopes due to leading whitespace', () => {
     const expectedScopes = ['   read:user'];
 
     const mockRequest = createRequest({
-      user: {
+      auth: {
         scope: ['read:user'],
       },
     });
@@ -74,14 +88,18 @@ describe('should 403 and "Insufficient scope"', () => {
 
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, mockNext);
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      ERROR_MSG_INSUFFICIENT_SCOPE,
+    );
   });
 
   it('when scope in user does not match expectedScopes due to trailing whitespace', () => {
     const expectedScopes = ['read:user   '];
 
     const mockRequest = createRequest({
-      user: {
+      auth: {
         scope: ['read:user'],
       },
     });
@@ -90,14 +108,18 @@ describe('should 403 and "Insufficient scope"', () => {
 
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, mockNext);
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      ERROR_MSG_INSUFFICIENT_SCOPE,
+    );
   });
 
   it('when scope in user does not match expectedScopes due to case', () => {
     const expectedScopes = ['Read:user'];
 
     const mockRequest = createRequest({
-      user: {
+      auth: {
         scope: ['read:user'],
       },
     });
@@ -106,14 +128,18 @@ describe('should 403 and "Insufficient scope"', () => {
 
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, mockNext);
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      ERROR_MSG_INSUFFICIENT_SCOPE,
+    );
   });
 
-  it('by calling the next() callback, when scope in user does not match expectedScopes and `options.failWithError` is `true`', (done) => {
+  it('by calling the next() callback, when scope is insufficient and `options.failWithError` is `true`', (done) => {
     const expectedScopes = ['read:user'];
 
     const mockRequest = createRequest({
-      user: {
+      auth: {
         scope: '',
       },
     });
@@ -124,86 +150,102 @@ describe('should 403 and "Insufficient scope"', () => {
       mockResponse,
       (error) => {
         expect(error.statusCode).to.equal(403);
-        expect(error.message).to.equal('Insufficient scope');
+        expect(error.message).to.equal(ERROR_MSG_INSUFFICIENT_SCOPE);
         expect(error.error).to.equal('Forbidden');
         done();
       },
     );
   });
 
-  it('when user.scope does not exist and expectedScopes are not empty', () => {
+  it('when scope claim does not exist (auth is object, but no scope key)', () => {
     const expectedScopes = ['read:user'];
-
     const mockRequest = createRequest({
-      user: {},
+      auth: {},
     });
     const mockResponse = createResponse();
     const mockNext = () => {};
 
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, mockNext);
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      ERROR_MSG_SCOPE_CLAIM_MISSING_OR_INVALID_FORMAT,
+    );
   });
 
-  it('when using a customScopeKey and invalid scopes', () => {
+  it('when using a customScopeKey and scope claim does not exist', () => {
     const expectedScopes = ['read:user'];
-
+    const customScopeKey = 'permissions';
     const mockRequest = createRequest({
-      user: {},
+      auth: {},
     });
     const mockResponse = createResponse();
     const mockNext = () => {};
 
-    jwtAuthz(expectedScopes, { customScopeKey: 'permissions' })(
+    jwtAuthz(expectedScopes, { customScopeKey })(
       mockRequest,
       mockResponse,
       mockNext,
     );
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      ERROR_MSG_SCOPE_CLAIM_MISSING_OR_INVALID_FORMAT,
+    );
   });
 
-  it('when using a customUserKey and invalid scopes', () => {
+  it('when using a customUserKey and scope claim does not exist', () => {
     const expectedScopes = ['read:user'];
-
+    const customUserKey = 'myUser';
     const mockRequest = createRequest({
-      myUser: {},
+      [customUserKey]: {},
     });
     const mockResponse = createResponse();
     const mockNext = () => {};
 
-    jwtAuthz(expectedScopes, { customUserKey: 'myUser' })(
+    jwtAuthz(expectedScopes, { customUserKey })(
       mockRequest,
       mockResponse,
       mockNext,
     );
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      ERROR_MSG_SCOPE_CLAIM_MISSING_OR_INVALID_FORMAT,
+    );
   });
 
-  it('when using a customUserKey and customScopeKey and invalid scopes', () => {
+  it('when using a customUserKey and customScopeKey and scope claim does not exist', () => {
     const expectedScopes = ['read:user'];
-
+    const customUserKey = 'myUser';
+    const customScopeKey = 'permissions';
     const mockRequest = createRequest({
-      myUser: {},
+      [customUserKey]: {},
     });
     const mockResponse = createResponse();
     const mockNext = () => {};
 
-    jwtAuthz(expectedScopes, {
-      customUserKey: 'myUser',
-      customScopeKey: 'permissions',
-    })(mockRequest, mockResponse, mockNext);
+    jwtAuthz(expectedScopes, { customUserKey, customScopeKey })(
+      mockRequest,
+      mockResponse,
+      mockNext,
+    );
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      ERROR_MSG_SCOPE_CLAIM_MISSING_OR_INVALID_FORMAT,
+    );
   });
 
-  it('when user.scope is missing some of the expectedScopes and options.checkAllScopes is true', () => {
+  it('when auth.scope is missing some required scopes and options.checkAllScopes is true', () => {
     const expectedScopes = ['read:user', 'write:user', 'delete:user'];
 
     const mockRequest = createRequest({
-      user: {
-        // This user is missing 'delete:user'
+      auth: {
         scope: 'read:user write:user',
       },
     });
@@ -214,26 +256,33 @@ describe('should 403 and "Insufficient scope"', () => {
       checkAllScopes: true,
     })(mockRequest, mockResponse, mockNext);
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      ERROR_MSG_INSUFFICIENT_SCOPE,
+    );
   });
 
-  it('when user does not exist and expectedScopes are not empty', () => {
+  it('when auth object does not exist (payload missing)', () => {
     const expectedScopes = ['read:user'];
-
     const mockRequest = createRequest({});
     const mockResponse = createResponse();
     const mockNext = () => {};
 
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, mockNext);
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      createMissingPayloadMessage('auth'),
+    );
   });
 
-  it('when user.scope is an empty array and expectedScopes are not empty', () => {
+  it('when auth.scope is an empty array and expectedScopes are not empty', () => {
     const expectedScopes = ['read:user'];
 
     const mockRequest = createRequest({
-      user: {
+      auth: {
         scope: [],
       },
     });
@@ -242,77 +291,161 @@ describe('should 403 and "Insufficient scope"', () => {
 
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, mockNext);
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      ERROR_MSG_INSUFFICIENT_SCOPE,
+    );
   });
 
-  it('when user.scope is undefined and expectedScopes are not empty', () => {
+  it('when auth is undefined (payload missing)', () => {
     const expectedScopes = ['read:user'];
-
     const mockRequest = createRequest({
-      user: {},
+      auth: undefined,
     });
     const mockResponse = createResponse();
     const mockNext = () => {};
 
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, mockNext);
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      createMissingPayloadMessage('auth'),
+    );
   });
 
-  it('when user is undefined and expectedScopes are not empty', () => {
+  it('when auth is null (payload invalid)', () => {
     const expectedScopes = ['read:user'];
-
     const mockRequest = createRequest({
-      user: undefined,
+      auth: null,
     });
     const mockResponse = createResponse();
     const mockNext = () => {};
 
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, mockNext);
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      createMissingPayloadMessage('auth'),
+    );
   });
 
-  it('when user is null and expectedScopes are not empty', () => {
+  it('when auth is a string (payload invalid)', () => {
     const expectedScopes = ['read:user'];
-
     const mockRequest = createRequest({
-      user: null,
+      auth: 'read:user',
     });
     const mockResponse = createResponse();
     const mockNext = () => {};
 
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, mockNext);
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      createMissingPayloadMessage('auth'),
+    );
   });
 
-  it('when user is a string and expectedScopes are not empty', () => {
+  it('when auth is an array (payload invalid)', () => {
     const expectedScopes = ['read:user'];
-
     const mockRequest = createRequest({
-      user: 'read:user',
+      auth: [],
     });
     const mockResponse = createResponse();
     const mockNext = () => {};
 
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, mockNext);
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      createMissingPayloadMessage('auth'),
+    );
   });
 
-  it('when user is an array and expectedScopes are not empty', () => {
+  it('when scope claim is not a string or array', () => {
     const expectedScopes = ['read:user'];
-
     const mockRequest = createRequest({
-      user: [],
+      auth: {
+        scope: 123, // Invalid scope format
+      },
     });
     const mockResponse = createResponse();
     const mockNext = () => {};
 
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, mockNext);
+    // Expect scope format error
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      ERROR_MSG_SCOPE_CLAIM_MISSING_OR_INVALID_FORMAT,
+    );
+  });
 
-    assertErrorResponseIs403InsufficientScope(mockResponse, expectedScopes);
+  it('when scope claim is an array with non-string elements', () => {
+    const expectedScopes = ['read:user'];
+    const mockRequest = createRequest({
+      auth: {
+        scope: ['read:user', 123, 'write:user'], // Malformed scope array
+      },
+    });
+    const mockResponse = createResponse();
+    const mockNext = () => {};
+
+    jwtAuthz(expectedScopes)(mockRequest, mockResponse, mockNext);
+    // Expect malformed array error
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      ERROR_MSG_SCOPE_CLAIM_MALFORMED_ARRAY,
+    );
+  });
+
+  it('by calling next() when scope claim format is invalid and failWithError is true', (done) => {
+    const expectedScopes = ['read:user'];
+    const mockRequest = createRequest({
+      auth: {
+        scope: 123, // Invalid scope format
+      },
+    });
+    const mockResponse = createResponse();
+
+    jwtAuthz(expectedScopes, { failWithError: true })(
+      mockRequest,
+      mockResponse,
+      (error) => {
+        expect(error.statusCode).to.equal(403);
+        expect(error.message).to.equal(
+          ERROR_MSG_SCOPE_CLAIM_MISSING_OR_INVALID_FORMAT,
+        );
+        expect(error.error).to.equal('Forbidden');
+        done();
+      },
+    );
+  });
+
+  it('by calling next() when scope array is malformed and failWithError is true', (done) => {
+    const expectedScopes = ['read:user'];
+    const mockRequest = createRequest({
+      auth: {
+        scope: ['read:user', 123], // Malformed scope array
+      },
+    });
+    const mockResponse = createResponse();
+
+    jwtAuthz(expectedScopes, { failWithError: true })(
+      mockRequest,
+      mockResponse,
+      (error) => {
+        expect(error.statusCode).to.equal(403);
+        expect(error.message).to.equal(ERROR_MSG_SCOPE_CLAIM_MALFORMED_ARRAY);
+        expect(error.error).to.equal('Forbidden');
+        done();
+      },
+    );
   });
 });
 
@@ -326,11 +459,11 @@ describe('should call next', () => {
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, done);
   });
 
-  it('when user.scope is a string and contains the expectedScope', (done) => {
+  it('when auth.scope is a string and contains the expectedScope', (done) => {
     const expectedScopes = ['read:user'];
 
     const mockRequest = createRequest({
-      user: {
+      auth: {
         scope: 'write:user read:user',
       },
     });
@@ -339,11 +472,11 @@ describe('should call next', () => {
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, done);
   });
 
-  it('when user.scope is an array and contains the expectedScope', (done) => {
+  it('when auth.scope is an array and contains the expectedScope', (done) => {
     const expectedScopes = ['read:user'];
 
     const mockRequest = createRequest({
-      user: {
+      auth: {
         scope: ['write:user', 'read:user'],
       },
     });
@@ -352,11 +485,11 @@ describe('should call next', () => {
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, done);
   });
 
-  it('when user.scope contains only one of the expectedScopes', (done) => {
+  it('when auth.scope contains only one of the expectedScopes', (done) => {
     const expectedScopes = ['read:user', 'write:user'];
 
     const mockRequest = createRequest({
-      user: {
+      auth: {
         scope: 'write:user',
       },
     });
@@ -365,11 +498,11 @@ describe('should call next', () => {
     jwtAuthz(expectedScopes)(mockRequest, mockResponse, done);
   });
 
-  it('when user.scope has all the expectedScopes and options.checkAllScopes is `true`', (done) => {
+  it('when auth.scope has all the expectedScopes and options.checkAllScopes is `true`', (done) => {
     const expectedScopes = ['read:user', 'write:user'];
 
     const mockRequest = createRequest({
-      user: {
+      auth: {
         scope: ['read:user', 'write:user', 'delete:user'],
       },
     });
@@ -386,7 +519,7 @@ describe('should call next', () => {
     const expectedScopes = ['read:user', 'write:user'];
 
     const mockRequest = createRequest({
-      user: {
+      auth: {
         permissions: 'write:user',
       },
     });
@@ -436,7 +569,7 @@ describe('should call next', () => {
     const expectedScopes = ['read:user', 'write:user'];
 
     const mockRequest = createRequest({
-      user: {
+      auth: {
         permissions: 'write:user',
       },
     });
@@ -445,5 +578,85 @@ describe('should call next', () => {
     jwtAuthz(expectedScopes, {
       customScopeKey: 'permissions',
     })(mockRequest, mockResponse, done);
+  });
+
+  it('should accept keys containing spaces', (done) => {
+    const expectedScopes = ['read:user'];
+    const mockRequest = createRequest({
+      'user data': {
+        'user scope': 'read:user',
+      },
+    });
+    const mockResponse = createResponse();
+
+    jwtAuthz(expectedScopes, {
+      customUserKey: 'user data',
+      customScopeKey: 'user scope',
+    })(mockRequest, mockResponse, done);
+  });
+});
+
+describe('error handling', () => {
+  it('should use consistent error structure when failing with error', (done) => {
+    const expectedScopes = ['read:user'];
+    const mockRequest = createRequest({
+      auth: { scope: '' },
+    });
+    const mockResponse = createResponse();
+
+    jwtAuthz(expectedScopes, { failWithError: true })(
+      mockRequest,
+      mockResponse,
+      (error) => {
+        expect(error).to.have.property('statusCode', 403);
+        expect(error).to.have.property('error', 'Forbidden');
+        expect(error.message).to.equal(ERROR_MSG_INSUFFICIENT_SCOPE);
+        expect(Object.keys(error)).to.have.lengthOf(3);
+        done();
+      },
+    );
+  });
+
+  it('should use consistent error structure when responding directly', () => {
+    const expectedScopes = ['read:user'];
+    const mockRequest = createRequest({
+      auth: { scope: '' },
+    });
+    const mockResponse = createResponse();
+    const mockNext = () => {};
+
+    jwtAuthz(expectedScopes)(mockRequest, mockResponse, mockNext);
+
+    assertErrorResponseIs403(
+      mockResponse,
+      expectedScopes,
+      ERROR_MSG_INSUFFICIENT_SCOPE,
+    );
+  });
+});
+
+describe('configuration validation', () => {
+  it('should throw when customScopeKey is an empty string', () => {
+    expect(() => jwtAuthz(['read:user'], { customScopeKey: '' })).to.throw(
+      'customScopeKey must be a non-empty string',
+    );
+  });
+
+  it('should throw when customScopeKey is only whitespace', () => {
+    expect(() => jwtAuthz(['read:user'], { customScopeKey: '   ' })).to.throw(
+      'customScopeKey must be a non-empty string',
+    );
+  });
+
+  it('should throw when customUserKey is an empty string', () => {
+    expect(() => jwtAuthz(['read:user'], { customUserKey: '' })).to.throw(
+      'customUserKey must be a non-empty string',
+    );
+  });
+
+  it('should throw when customUserKey is only whitespace', () => {
+    expect(() => jwtAuthz(['read:user'], { customUserKey: '   ' })).to.throw(
+      'customUserKey must be a non-empty string',
+    );
   });
 });

@@ -55,14 +55,29 @@ export type AuthzOptions = {
 /**
  * Standard error structure for authorization failures.
  */
-interface AuthzError {
+export type AuthzError = {
   /** HTTP status code (always 403 for authorization errors) */
   statusCode: 403;
   /** Error type identifier */
   error: 'Forbidden';
   /** Human-readable error message */
   message: string;
-}
+};
+
+export const ERROR_MSG_SCOPE_CLAIM_MISSING_OR_INVALID_FORMAT =
+  'Scope claim missing or has invalid format.';
+export const ERROR_MSG_SCOPE_CLAIM_MALFORMED_ARRAY =
+  'Malformed scope claim: all scopes in the array must be strings.';
+export const ERROR_MSG_INSUFFICIENT_SCOPE = 'Insufficient scope.';
+
+/**
+ * Creates the error message for when the expected JWT payload object is missing or invalid.
+ * @param authKey The key on the request object where the payload was expected.
+ * @returns The formatted error message string.
+ */
+export const createMissingPayloadMessage = (authKey: string): string => {
+  return `req[${authKey}] is missing or not an object.`;
+};
 
 /**
  * Default property name for scopes in the JWT payload.
@@ -100,6 +115,8 @@ function isObjectWithProperties(
  * Creates and returns an Express middleware function that verifies a user's JWT scope
  * claim against a set of expected scopes.
  *
+ * Note: Scope comparison is case-sensitive.
+ *
  * @param expectedScopes An array of scope strings required for access.
  * @param options Configuration options for the middleware's behavior.
  * @returns An Express middleware function (express.Handler).
@@ -114,23 +131,31 @@ export const jwtAuthz = (
     );
   }
 
+  if (options?.customScopeKey !== undefined && !options.customScopeKey.trim()) {
+    throw new Error('customScopeKey must be a non-empty string');
+  }
+
+  if (options?.customUserKey !== undefined && !options.customUserKey.trim()) {
+    throw new Error('customUserKey must be a non-empty string');
+  }
+
   return (req, res, next) => {
-    const error = (res: Response) => {
-      const errMessage = 'Insufficient scope';
+    const error = (res: Response, message: string) => {
+      const authError: AuthzError = {
+        statusCode: 403,
+        error: 'Forbidden',
+        message: message,
+      };
 
       if (options && options.failWithError) {
-        return next({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: errMessage,
-        });
+        return next(authError);
       }
 
       res.append(
         'WWW-Authenticate',
-        `Bearer scope="${expectedScopes.join(' ')}", error="${errMessage}"`,
+        `Bearer scope="${expectedScopes.join(' ')}", error="${authError.message}"`,
       );
-      res.status(403).send(errMessage);
+      res.status(authError.statusCode).send(authError.message);
     };
 
     if (expectedScopes.length === 0) {
@@ -160,7 +185,7 @@ export const jwtAuthz = (
     const payload = req[authKey];
 
     if (!isObjectWithProperties(payload)) {
-      return error(res);
+      return error(res, createMissingPayloadMessage(authKey));
     }
 
     const scopes = payload[scopeKey];
@@ -169,7 +194,7 @@ export const jwtAuthz = (
     const hasScopesAsArray = Array.isArray(scopes);
 
     if (!(hasScopesAsString || hasScopesAsArray)) {
-      return error(res);
+      return error(res, ERROR_MSG_SCOPE_CLAIM_MISSING_OR_INVALID_FORMAT);
     }
 
     if (hasScopesAsString) {
@@ -177,7 +202,14 @@ export const jwtAuthz = (
     }
 
     if (hasScopesAsArray) {
-      userScopes = scopes;
+      const allElementsAreStrings = scopes.every(
+        (scope) => typeof scope === 'string',
+      );
+
+      if (!allElementsAreStrings) {
+        return error(res, ERROR_MSG_SCOPE_CLAIM_MALFORMED_ARRAY);
+      }
+      userScopes = scopes as string[];
     }
 
     let allowed =
@@ -185,6 +217,6 @@ export const jwtAuthz = (
         ? expectedScopes.every((scope) => userScopes.includes(scope))
         : expectedScopes.some((scope) => userScopes.includes(scope));
 
-    return allowed ? next() : error(res);
+    return allowed ? next() : error(res, ERROR_MSG_INSUFFICIENT_SCOPE);
   };
 };
