@@ -6,6 +6,10 @@
   "types": "lib/index.d.ts",
   "scripts": {
     "test": "tsx ./node_modules/.bin/mocha 'test/**/*.ts'",
+    "test:express4": "npm install --no-save express@^4.0.0 && npm run test",
+    "test:express5": "npm install --no-save express@^5.0.0 && npm run test",
+    "pretest:express": "npm ci",
+    "test:all-express": "npm run pretest:express && npm run test:express4 && npm run test:express5",
     "build": "tsc",
     "coverage": "c8 tsx ./node_modules/.bin/mocha 'test/**/*.ts'"
   },
@@ -50,7 +54,6 @@
     "node": ">=6"
   },
   "peerDependencies": {
-    "@types/express": "^4.0.0",
-    "express": "^4.0.0"
+    "express": "^4.0.0 || ^5.0.0"
   }
 }
