@@ -1,3 +1,5 @@
+# Changelog
+
 # 3.0.0
 
 ### BREAKING CHANGES
@@ -7,20 +9,31 @@
 
 ### Added
 
-- **TypeScript:** Migrated entire codebase from JavaScript to TypeScript, providing first-class type definitions included in the package.
-- **Express v5 Support:** Added official peer dependency support for Express `^5.0.0`.
-- **Testing:** Introduced comprehensive unit tests with improved coverage reporting using `c8`.
-- **Coverage:** Added test coverage reporting mechanism.
+- Migrated entire codebase from JavaScript to TypeScript, providing first-class type definitions included in the package.
+- Added official peer dependency support for Express `^5.0.0`.
+- Introduced comprehensive unit tests with improved coverage reporting using `c8`.
+- Added test coverage reporting mechanism.
+- Validate JWT scope arrays to ensure all elements are strings, returning a specific error message (`ERROR_MSG_SCOPE_CLAIM_MALFORMED_ARRAY`) if not.
+- Export error message constants (`ERROR_MSG_INSUFFICIENT_SCOPE`, `ERROR_MSG_SCOPE_CLAIM_MISSING_OR_INVALID_FORMAT`, `ERROR_MSG_SCOPE_CLAIM_MALFORMED_ARRAY`) and a helper function (`createMissingPayloadMessage`) to allow consumers (especially tests) to identify specific authorization failures.
+- Added tests for invalid scope claim types and malformed scope arrays.
 
 ### Changed
 
-- **Dependencies:** Updated various development dependencies.
-- **Build Process:** Implemented TypeScript compilation using `tsc`.
-- **Documentation:** Updated README with TypeScript examples, type information, setup instructions, and contribution guidelines.
+- Updated various development dependencies.
+- Implemented TypeScript compilation using `tsc`.
+- Updated README with TypeScript examples, type information, setup instructions, and contribution guidelines.
+- Improved specificity of error messages for different failure scenarios (invalid payload object, invalid scope claim format, insufficient scope).
+- Updated test suite to use exported error constants/helper and assert correct error messages.
+- Updated README examples for clarity.
+
+### Fixed
+
+- Middleware now correctly returns a 403 error instead of potentially succeeding or throwing unexpected errors when the scope claim is present but not a string/array or contains non-string elements.
 
 ### Removed
 
 - Removed old JavaScript source files.
+- Redundant and incorrect `describe('scope validation')` test suite.
 
 # 2.4.1
 
