@@ -1,4 +1,4 @@
-import { Handler, Response } from 'express';
+import type { Handler, Response } from 'express';
 
 declare global {
   namespace Express {
@@ -10,12 +10,12 @@ declare global {
 
 export type AuthzScopes = string[];
 
-export interface AuthzOptions {
+export type AuthzOptions = {
   failWithError?: boolean;
   customScopeKey?: string;
   customUserKey?: string;
   checkAllScopes?: boolean;
-}
+};
 
 const DEFAULT_SCOPE_KEY = 'scope';
 const DEFAULT_USER_KEY = 'user';
