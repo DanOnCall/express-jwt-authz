@@ -8,16 +8,73 @@ declare global {
   }
 }
 
+/**
+ * Array of scope strings required for authorization.
+ * Each string represents a permission that can be granted to a user.
+ *
+ * @example
+ * ```typescript
+ * const scopes: AuthzScopes = ['read:users', 'write:users'];
+ * ```
+ */
 export type AuthzScopes = string[];
 
+/**
+ * Configuration options for the JWT authorization middleware.
+ */
 export type AuthzOptions = {
+  /**
+   * If true, authorization failures will be passed to Express's error handler
+   * via next(error) instead of sending a 403 response directly.
+   * @default false
+   */
   failWithError?: boolean;
+
+  /**
+   * Custom key to look for scopes in the JWT payload.
+   * Use this if your JWT uses a different property name for scopes.
+   * @default 'scope'
+   */
   customScopeKey?: string;
+
+  /**
+   * Custom key to look for the JWT payload on the request object.
+   * Use this if your JWT middleware uses a different property name.
+   * @default 'auth'
+   */
   customUserKey?: string;
+
+  /**
+   * If true, requires all specified scopes to be present in the JWT.
+   * If false, only one of the specified scopes needs to be present.
+   * @default false
+   */
   checkAllScopes?: boolean;
 };
 
+/**
+ * Standard error structure for authorization failures.
+ */
+interface AuthzError {
+  /** HTTP status code (always 403 for authorization errors) */
+  statusCode: 403;
+  /** Error type identifier */
+  error: 'Forbidden';
+  /** Human-readable error message */
+  message: string;
+}
+
+/**
+ * Default property name for scopes in the JWT payload.
+ * @constant
+ */
 const DEFAULT_SCOPE_KEY = 'scope';
+
+/**
+ * Default property name for the JWT payload on the request object.
+ * Matches express-jwt v6.0.0+ default.
+ * @constant
+ */
 const DEFAULT_AUTH_KEY = 'auth';
 
 /**
