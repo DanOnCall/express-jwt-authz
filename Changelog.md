@@ -6,6 +6,7 @@
 
 - **Export Method:** The library now uses a named export (`export const jwtAuthz`) instead of `module.exports`. CommonJS consumers must update their `require` statements from `const jwtAuthz = require('express-jwt-authz');` to `const { jwtAuthz } = require('express-jwt-authz');`. ES Module imports (`import { jwtAuthz } from ...`) remain unchanged.
 - **Default User Key:** The default value for the `customUserKey` option has been changed from `'user'` to `'auth'`. This aligns with `express-jwt` `v6.0.0` and later. If you are using an older version of `express-jwt` or a different middleware that places the user payload on `req.user`, you must now explicitly pass `{ customUserKey: 'user' }` to `jwtAuthz`. Users of modern `express-jwt` no longer need to specify `{ customUserKey: 'auth' }`.
+- **Node.js Version Requirement:** Minimum Node.js version has been updated from `>=6` to `>=14`. Node.js versions 6, 8, 10, and 12 have all reached end-of-life and are no longer supported. This change allows the library to leverage modern JavaScript features and aligns with current Node.js LTS versions.
 
 ### Added
 
