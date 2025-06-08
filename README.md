@@ -2,13 +2,15 @@
 
 Validate the `scope` claim of a JSON Web Token (JWT) to authorize access to an endpoint. Written in TypeScript.
 
+> **Migrating from `v2`?** See our [Migration Guide](MIGRATION.md) for step-by-step instructions.
+
 ## Installation
 
 ```bash
 npm install express-jwt-authz
 ```
 
-> **Note:** `express` version `^4.0.0` or `^5.0.0` is a peer dependency. Ensure a compatible version is installed in your project. Type definitions for `express-jwt-authz` are included in the package.
+> **Note:** This package requires `express` (`^4.0.0` or `^5.0.0`) as a peer dependency. Please ensure your project has a compatible version installed. Type definitions for `express-jwt-authz` are included in the package.
 
 ## API
 
@@ -59,7 +61,13 @@ An Express middleware function.
 
 ## Usage
 
-Use this middleware together with [express-jwt](https://github.com/auth0/express-jwt) to first validate a JWT and then ensure it contains the necessary permissions (scopes) to access a specific endpoint.
+This middleware should be used after a JWT validation middleware like [express-jwt](https://github.com/auth0/express-jwt), which validates a token and makes its payload available on the request object.
+
+> The following examples use `express-jwt` and `jwks-rsa`. To run them, you will also need to install these packages:
+>
+> ```bash
+> npm install express-jwt jwks-rsa
+> ```
 
 > [!IMPORTANT]  
 > `express-jwt` version `v6.0.0` and later place the decoded JWT payload on `req.auth` by default. This library (`express-jwt-authz`) now also defaults to looking for the payload at `req.auth`. If you are using `express-jwt < 6.0.0`, you must pass `{ customUserKey: 'user' }` as options to this middleware.
@@ -417,7 +425,7 @@ The `message` property in the response body (or the `err` object when `failWithE
 
 ## Node.js Version Compatibility
 
-The library targets ES2016 (`target` in `tsconfig.json`) and uses CommonJS modules (`module` in `tsconfig.json`). It requires a Node.js version compatible with this output (Node.js >= 6 is specified in `engines`, but using a modern LTS version like 18.x, 20.x, or later is strongly recommended).
+The library targets ES2016 (`target` in `tsconfig.json`) and uses CommonJS modules (`module` in `tsconfig.json`). It requires Node.js version `v14` or higher. While the compiled output technically supports older versions, Node.js `v14` is the minimum supported version as all prior versions have reached end-of-life.
 
 ## Contributing
 

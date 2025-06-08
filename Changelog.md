@@ -2,6 +2,8 @@
 
 # 3.0.0
 
+> **Migration Guide:** For detailed upgrade instructions from `v2` to `v3`, see [MIGRATION.md](MIGRATION.md).
+
 ### BREAKING CHANGES
 
 - **Export Method:** The library now uses a named export (`export const jwtAuthz`) instead of `module.exports`. CommonJS consumers must update their `require` statements from `const jwtAuthz = require('express-jwt-authz');` to `const { jwtAuthz } = require('express-jwt-authz');`. ES Module imports (`import { jwtAuthz } from ...`) remain unchanged.
